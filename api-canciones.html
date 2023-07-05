@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+    <title>Buscador de canciones</title>
+  </head>
+  <style>
+    *{
+      margin: 0;
+    }
+    body{
+      height: 100vh;
+      background: #0F2027;  /* fallback for old browsers */
+      background: -webkit-linear-gradient(to bottom, #2C5364, #203A43, #0F2027);  /* Chrome 10-25, Safari 5.1-6 */
+      background: linear-gradient(to bottom, #2C5364, #203A43, #0F2027); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+      background-size: cover;
+      background-repeat: no-repeat;
+    }
+    header{
+      width: 70%;
+      margin: auto;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      padding-bottom: 1rem;
+    }
+    header img{
+      width: 5%;
+      height: 5%;
+      min-width: 50px;
+      padding: 1rem;
+    }
+    h1{
+      text-align: center;
+      width: 95%;
+      font-family: 'Abel', sans-serif;
+    }
+    /* Esto es la parte en donde va la informacion del artista y la letra de la cancion */
+    main {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      width: 70%;
+      margin: auto;
+    }
+    main article {
+      text-align: center;
+    }
+    /* Esto es la imagen de carga */
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+    .loader {
+      display: none;
+      margin: auto;
+    }
+    /* le quitamos los links que agrega la api a las letras de las canciones */
+    a {
+    pointer-events: none; 
+    cursor: default;
+    color: black;
+    text-decoration: none;
+}
+    @media screen and (max-width: 700px) {
+      header{
+        width: 80%;
+      }
+      header img{
+        padding: .5rem;
+      }
+      header h1{
+        font-size: x-large;
+        color: aliceblue;
+      }
+      main {
+        flex-direction: column-reverse;
+        width: 100%;
+      }
+      main article {
+        padding: 1rem;
+        font-size: small;
+      }
+    }
+  </style>
+  <body>
+    <header>
+      <img src="assets/icons/LOGO PERFIL.png" alt="">
+      <h1>LYRICS FINDER</h1>
+    </header>
+    
+    <form id="song-search">
+      <input type="text" name="artist" placeholder="Artista..." required />
+      <input type="text" name="song" placeholder="Canción..." required />
+      <input type="submit" />
+    </form>
+    <img class="loader" src="assets/img/ball-triangle.svg" alt="Cargando..." />
+    <aside class="error"></aside>
+    <main>
+      <article class="artist">
+        <h2>Información del Artista</h2>
+      </article>
+      <article class="song">
+        <h2>Letra de la Canción</h2>
+      </article>
+    </main>
+    <script>
+      const d = document,
+        $form = d.getElementById("song-search"),
+        $laoder = d.querySelector(".loader"),
+        $error = d.querySelector(".error"),
+        $main = d.querySelector(".main"),
+        $artist = d.querySelector(".artist"),
+        $song = d.querySelector(".song");
+
+      $form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        /* borramos los resultados de busquedas anteriores para que no se acumulen */
+        $artist.innerHTML = "<h2>Información del Artista</h2>"
+        $song.innerHTML = "<h2>Letra de la Canción</h2>"
+        /* Mandamos llamar la funcion que busca informacion del artista
+        y obtenemos el id de la cacnion para despues realizar otra busqueda */
+        getSongID(e);
+      });
+      async function  getSongID(e) {
+        //Cargamos la imagen de espera
+        $laoder.style.display = "block";
+          let artist = e.target.artist.value;
+          let song = e.target.song.value,
+          //guardamos las credenciales de la primera busqueda, donde obtenemos la informacion del artista 
+          // y el id de la cancion
+            options = {
+              method: "GET",
+              headers: {
+                'X-RapidAPI-Key': 'd57e65adc9mshaaf9059dc8deb61p146b27jsn6a55c8764211',
+		            'X-RapidAPI-Host': 'genius-song-lyrics1.p.rapidapi.com',
+              },
+            }
+            try{
+              //hacemos la primera call a la api
+              let songAPI = `https://genius-song-lyrics1.p.rapidapi.com/search/?q=${artist}%20${song}&per_page=10&page=1`,
+              songFetch = await fetch(songAPI, options),
+              songData = await songFetch.json();
+              //insertamos el nombre del artista, aqui insertamos mas info del artista en caso de que asi lo queramos
+              $artist.insertAdjacentHTML("beforeend", songData.hits[0].result.artist_names || "No se encontró el Artista");
+              //quitamos la imagen de carga
+              $laoder.style.display = "none";
+              //vemos si la cancion tiene letra y si es asi mandamos llamar la funcion que consulta a la api por 
+              //la letra de la cancion
+              if (songData.hits[0].result.lyrics_state === "complete") {
+                let id_song = songData.hits[0].result.id;
+                //funcion de la segunda llamada a la api, que es la que trae la letra
+                getLyrics(e, id_song);
+            }
+            } catch (err) {
+              console.log(err);
+              let message = err.statusText || "Ocurrió un error";
+              $error.innerHTML = `<p>Error ${err.status}: ${message}</p>`;
+              $laoder.style.display = "none";
+            }
+          }
+      async function  getLyrics(e, id) {
+        //credenciales de la segunda llamada a la api, que es la que trae la letra de la cancion
+            options = {
+              method: 'GET',
+	            headers: {
+	            	'X-RapidAPI-Key': 'd57e65adc9mshaaf9059dc8deb61p146b27jsn6a55c8764211',
+		            'X-RapidAPI-Host': 'genius-song-lyrics1.p.rapidapi.com'
+	            }
+            }
+            try{
+              let songAPI = `https://genius-song-lyrics1.p.rapidapi.com/song/lyrics/?id=${id}`,
+              songFetch = await fetch(songAPI, options),
+              songData = await songFetch.json();
+
+              $song.insertAdjacentHTML("beforeend", songData.lyrics.lyrics.body.html || "No se encontró la letra de la canción");
+            } catch (err) {
+              console.log(err);
+              let message = err.statusText || "Ocurrió un error";
+              $error.innerHTML = `<p>Error ${err.status}: ${message}</p>`;
+              $laoder.style.display = "none";
+            }
+          }
+    </script>
+  </body>
+</html>
